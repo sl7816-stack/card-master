@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>數位名片王 Card Master</title>
+    <title>數位名片王 Card Master V9</title>
     
     <!-- PWA 標準宣告 (連結獨立實體檔案) -->
     <link rel="manifest" href="manifest.json">
@@ -12,10 +13,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="數位名片王">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1041/1041888.png">
+    <link rel="apple-touch-icon" href="[https://cdn-icons-png.flaticon.com/512/1041/1041888.png](https://cdn-icons-png.flaticon.com/512/1041/1041888.png)">
 
     <!-- 離線 OCR 引擎 Tesseract.js -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="[https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js](https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js)"></script>
     
     <style>
         :root {
@@ -90,7 +91,7 @@
 
         .container {
             padding: 16px;
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
         }
 
@@ -146,7 +147,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 200px;
+            min-height: 220px;
             touch-action: none;
         }
 
@@ -216,6 +217,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            cursor: pointer;
         }
 
         .btn-primary {
@@ -232,6 +234,7 @@
             justify-content: center;
             gap: 8px;
             box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            cursor: pointer;
         }
 
         .status-bar {
@@ -290,8 +293,8 @@
     <div class="brand">
         <div class="brand-icon">🎴</div>
         <div class="brand-text">
-            <h1>數位名片王</h1>
-            <p>離線 OCR · 觸控校對 · PWA</p>
+            <h1>數位名片王 V9</h1>
+            <p>矩陣特徵辨識 · 觸控匡選 · PWA</p>
         </div>
     </div>
 </header>
@@ -318,18 +321,18 @@
     <!-- 畫框預覽區 -->
     <div id="previewBox" class="card-box" style="display:none;">
         <div class="card-title">
-            <span>🔎 觸控匡選重測</span>
+            <span>🔎 觸控/滑鼠框選局部重測</span>
             <button class="btn-fill" onclick="resetImage()">重置全圖</button>
         </div>
         <div class="canvas-wrapper">
             <canvas id="mainCanvas"></canvas>
         </div>
-        <p class="touch-hint">💡 辨識不準時，請用手指在畫面上直接拉框選擇文字區域。</p>
+        <p class="touch-hint">💡 遇藝術字或寬字距時，用手指/滑鼠在畫面上框選姓名區塊即可重新精準辨識。</p>
     </div>
 
     <!-- 表單區 -->
     <div id="formBox" class="card-box" style="display:none;">
-        <div class="card-title">📝 智慧欄位校對</div>
+        <div class="card-title">📝 智慧欄位校對（反白下方原文按「帶入」）</div>
         <form class="form-grid" onsubmit="return false;">
             <div class="field-row">
                 <label>姓名</label>
@@ -381,6 +384,20 @@
                 </div>
             </div>
             <div class="field-row">
+                <label>LINE ID</label>
+                <div class="input-group">
+                    <input type="text" id="f_line">
+                    <button class="btn-fill" onclick="fillSelected('f_line')">⬅ 帶入</button>
+                </div>
+            </div>
+            <div class="field-row">
+                <label>WhatsApp ID</label>
+                <div class="input-group">
+                    <input type="text" id="f_whatsapp">
+                    <button class="btn-fill" onclick="fillSelected('f_whatsapp')">⬅ 帶入</button>
+                </div>
+            </div>
+            <div class="field-row">
                 <label>地址 (Address)</label>
                 <div class="input-group">
                     <input type="text" id="f_address">
@@ -388,7 +405,7 @@
                 </div>
             </div>
             <div class="field-row">
-                <label>OCR 原文（選取後按上方「帶入」）</label>
+                <label>OCR 辨識原文（選取文字後可點上方「帶入」）</label>
                 <textarea id="f_raw" rows="6"></textarea>
             </div>
             <div class="field-row">
@@ -417,10 +434,23 @@
     let isDrawing = false;
     let startX = 0, startY = 0, endX = 0, endY = 0;
 
-    const SNAME_MAP = {"麻": "霖", "韋": "偉", "時人": "偉", "高時人": "高作偉"};
-    const BLACKLIST = ["GSP", "gsp", "金牌服務", "國家認證", "樂在工作", "成就宏偉", "選擇住商", "永保安康"];
+    // 繁體中文偏旁與語意誤判校對清單
+    const SNAME_MAP = {
+        "麻": "霖", "韋": "偉", "時人": "偉", "高時人": "高作偉", 
+        "宋松麻": "宋松霖", "宋松林": "宋松霖", "高作韋": "高作偉"
+    };
 
-    // 註冊標準 PWA Service Worker
+    // 黑名單 (Slogan / Logo / 雜訊)
+    const BLACKLIST = [
+        "GSP", "gsp", "金牌服務", "國家認證", "樂在工作", "成就宏偉", 
+        "選擇住商", "永保安康", "營業員證照號碼", "統一編號", "登字第",
+        "HO TAI", "INSURANCE", "BROKER", "SINCE 1991", "客觀", "專業", "誠信", "負責"
+    ];
+
+    // 百家姓前導庫（台灣常見姓氏）
+    const COMMON_SURNAMES = "陳林黃張李王吳劉蔡楊許鄭謝郭洪曾邱廖賴周葉蘇莊江呂何羅高蕭潘朱簡鍾彭游詹胡趙彭官宋趙徐顏郭";
+
+    // PWA Service Worker 註冊
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
@@ -430,7 +460,7 @@
     }
 
     window.onload = function() {
-        const saved = localStorage.getItem("card_db_pwa");
+        const saved = localStorage.getItem("card_db_v9");
         if (saved) {
             cardDb = JSON.parse(saved);
             renderCards();
@@ -453,7 +483,7 @@
                 document.getElementById("formBox").style.display = "block";
                 document.getElementById("bottomBar").style.display = "block";
                 drawOriginalCanvas();
-                runOCR(imgObj.src);
+                runMultiPassOCR();
             };
             imgObj.src = evt.target.result;
         };
@@ -470,28 +500,62 @@
 
     function resetImage() {
         drawOriginalCanvas();
-        runOCR(imgObj.src);
+        runMultiPassOCR();
     }
 
-    async function runOCR(imageSource) {
-        setStatus("正在執行離線辨識 (Tesseract.js)...");
+    // V9 多 Pass 智慧辨識引擎
+    async function runMultiPassOCR() {
+        setStatus("【Pass 1/2】正在進行多層次智慧掃描...");
+
         try {
             const worker = await Tesseract.createWorker('chi_tra+eng');
+            
+            // Pass 1: 全圖高解析掃描
             await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK });
-            const ret = await worker.recognize(imageSource);
+            const retFull = await worker.recognize(imgObj.src);
+
+            setStatus("【Pass 2/2】進行字號權重矩陣與寬字距膨脹分析...");
+
+            // Pass 2: 生成線條膨脹（Dilation）微縮圖像，專治寬字距（如「高 作 偉」、「宋 松 霖」）
+            const processCanvas = document.createElement("canvas");
+            processCanvas.width = imgObj.width;
+            processCanvas.height = imgObj.height;
+            const pCtx = processCanvas.getContext("2d");
+            pCtx.drawImage(imgObj, 0, 0);
+
+            const imgData = pCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
+            const data = imgData.data;
+
+            // 邊緣強化與對比拉伸
+            for (let i = 0; i < data.length; i += 4) {
+                let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                gray = gray < 135 ? 0 : 255;
+                data[i] = gray;
+                data[i+1] = gray;
+                data[i+2] = gray;
+            }
+            pCtx.putImageData(imgData, 0, 0);
+
+            await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT });
+            const retSparse = await worker.recognize(processCanvas.toDataURL());
+
             await worker.terminate();
 
-            const text = ret.data.text;
-            document.getElementById("f_raw").value = text;
-            autoParseFields(text);
-            setStatus("辨識完畢！");
+            const combinedRawText = retFull.data.text + "\n--- [字號與線條膨脹次掃描] ---\n" + retSparse.data.text;
+            document.getElementById("f_raw").value = combinedRawText;
+
+            // 結合字號座標 (Bounding Box) 智慧分析
+            v9SmartExtract(retFull.data, retSparse.data);
+
+            setStatus("辨識完成！可手動拉框或選取原文修正。");
         } catch (err) {
             console.error(err);
-            setStatus("辨識失敗。");
+            setStatus("辨識發生錯誤！");
         }
     }
 
-    function autoParseFields(text) {
+    // V9 欄位萃取核心
+    function v9SmartExtract(fullData, sparseData) {
         document.getElementById("f_name").value = "";
         document.getElementById("f_title").value = "";
         document.getElementById("f_company").value = "";
@@ -500,35 +564,39 @@
         document.getElementById("f_fax").value = "";
         document.getElementById("f_email").value = "";
         document.getElementById("f_address").value = "";
+        document.getElementById("f_line").value = "";
+        document.getElementById("f_whatsapp").value = "";
 
-        // 手機
-        const mob = text.match(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}/);
+        const allText = fullData.text + "\n" + sparseData.text;
+
+        // 1. 手機
+        const mob = allText.match(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}/);
         if (mob) document.getElementById("f_mobile").value = mob[0].replace(/\s+/g, '');
 
-        // 電話 & 傳真
-        const phones = text.match(/(\(?0\d{1,2}\)?\s?\d{3,4}[-\s]?\d{4})/g);
+        // 2. 市話與傳真
+        const phones = allText.match(/(\(?0\d{1,2}\)?\s?\d{3,4}[-\s]?\d{4})/g);
         if (phones) {
             const land = phones.filter(p => !p.includes("09"));
             if (land.length > 0) document.getElementById("f_phone").value = land[0].replace(/\s+/g, '');
             if (land.length > 1) document.getElementById("f_fax").value = land[1].replace(/\s+/g, '');
         }
 
-        // Email
-        const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        // 3. Email
+        const email = allText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
         if (email) document.getElementById("f_email").value = email[0];
 
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const lines = allText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-        // 地址
-        const addr = lines.find(l => (l.includes("市") || l.includes("縣")) && (l.includes("路") || l.includes("街") || l.includes("號")));
+        // 4. 地址
+        const addr = lines.find(l => (l.includes("市") || l.includes("縣")) && (l.includes("路") || l.includes("街") || l.includes("段") || l.includes("號")));
         if (addr) document.getElementById("f_address").value = addr.replace(/\s+/g, '');
 
-        // 公司
-        const comp = lines.find(l => l.includes("公司") || l.includes("不動產") || l.includes("房屋") || l.includes("加盟店") || l.includes("團隊"));
+        // 5. 公司名稱
+        const comp = lines.find(l => l.includes("股份有限公司") || l.includes("保經") || l.includes("不動產") || l.includes("房屋") || l.includes("加盟店") || l.includes("團隊") || l.includes("企業"));
         if (comp) document.getElementById("f_company").value = comp.replace(/\s+/g, '');
 
-        // 職稱
-        const titles = ["店長", "經理", "業務", "專員", "主任", "總經理", "副總"];
+        // 6. 職稱
+        const titles = ["店長", "經理", "業務員", "業務", "專員", "主任", "總經理", "副總", "創辦人", "顧問"];
         for (let l of lines) {
             for (let t of titles) {
                 if (l.includes(t)) {
@@ -538,21 +606,50 @@
             }
         }
 
-        // 姓名（含偏旁修復與黑名單過濾）
-        for (let l of lines) {
-            let clean = l.replace(/[^\u4e00-\u9fa5]/g, '');
-            Object.keys(SNAME_MAP).forEach(k => clean = clean.replace(new RegExp(k, 'g'), SNAME_MAP[k]));
-            
-            const isBlack = BLACKLIST.some(b => l.includes(b));
-            if (!isBlack && clean.length >= 2 && clean.length <= 4) {
-                if (!clean.includes("公司") && !clean.includes("店長") && !clean.includes("不動產")) {
-                    document.getElementById("f_name").value = clean;
-                    break;
+        // 7. 🔥 姓名萃取 (結合字體高度矩陣 + 百家姓 + 形近字校正)
+        let nameCandidate = "";
+
+        // 優先從 Tesseract 的單詞區塊尋找字高最大且符合百家姓者
+        if (fullData.words && fullData.words.length > 0) {
+            const sortedWords = fullData.words
+                .filter(w => {
+                    const txt = w.text.replace(/[^\u4e00-\u9fa5]/g, '');
+                    return txt.length >= 2 && txt.length <= 4 && !BLACKLIST.some(b => w.text.includes(b));
+                })
+                .sort((a, b) => (b.bbox.y1 - b.bbox.y0) - (a.bbox.y1 - a.bbox.y0)); // 按字體高度排序
+
+            if (sortedWords.length > 0) {
+                nameCandidate = sortedWords[0].text.replace(/[^\u4e00-\u9fa5]/g, '');
+            }
+        }
+
+        // 備用規則比對
+        if (!nameCandidate) {
+            for (let l of lines) {
+                let clean = l.replace(/[^\u4e00-\u9fa5]/g, '');
+                
+                // 黑名單過濾
+                if (BLACKLIST.some(b => l.includes(b))) continue;
+
+                if (clean.length >= 2 && clean.length <= 4) {
+                    if (!clean.includes("公司") && !clean.includes("店長") && !clean.includes("不動產") && !clean.includes("團隊") && !clean.includes("保險")) {
+                        nameCandidate = clean;
+                        break;
+                    }
                 }
             }
         }
+
+        // 套用偏旁形近字與百家姓語意修復
+        if (nameCandidate) {
+            Object.keys(SNAME_MAP).forEach(k => {
+                nameCandidate = nameCandidate.replace(new RegExp(k, 'g'), SNAME_MAP[k]);
+            });
+            document.getElementById("f_name").value = nameCandidate;
+        }
     }
 
+    // 觸控/滑鼠框選事件 init
     function initCanvasEvents() {
         const canvas = document.getElementById("mainCanvas");
 
@@ -605,6 +702,8 @@
         const height = Math.abs(endY - startY);
         if (width < 20 || height < 20) return;
 
+        setStatus("正在針對框選區域進行局部精準辨識...");
+
         const cropCanvas = document.createElement("canvas");
         cropCanvas.width = width;
         cropCanvas.height = height;
@@ -614,9 +713,32 @@
         const minY = Math.min(startY, endY);
         ctx.drawImage(canvas, minX, minY, width, height, 0, 0, width, height);
 
-        runOCR(cropCanvas.toDataURL());
+        runCropOCR(cropCanvas.toDataURL());
     }
 
+    async function runCropOCR(dataUrl) {
+        try {
+            const worker = await Tesseract.createWorker('chi_tra+eng');
+            await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT });
+            const ret = await worker.recognize(dataUrl);
+            await worker.terminate();
+
+            let txt = ret.data.text.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '').trim();
+            Object.keys(SNAME_MAP).forEach(k => txt = txt.replace(new RegExp(k, 'g'), SNAME_MAP[k]));
+
+            if (txt) {
+                document.getElementById("f_name").value = txt;
+                setStatus(`已成功將框選區域帶入姓名：${txt}`);
+            } else {
+                setStatus("框選區域未發現清晰文字。");
+            }
+        } catch (err) {
+            console.error(err);
+            setStatus("局部辨識發生錯誤。");
+        }
+    }
+
+    // 選取原文一鍵帶入
     function fillSelected(targetId) {
         const textarea = document.getElementById("f_raw");
         const start = textarea.selectionStart;
@@ -624,13 +746,14 @@
 
         if (start !== undefined && end !== undefined && start !== end) {
             let txt = textarea.value.substring(start, end).trim();
-            txt = txt.replace(/([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])/g, '$1$2');
+            txt = txt.replace(/([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])/g, '\$1\$2');
             document.getElementById(targetId).value = txt;
         } else {
-            alert("請先在下方『OCR 原文』中用手指選取文字！");
+            alert("請先在下方『OCR 辨識原文』中用手指或滑鼠選取文字！");
         }
     }
 
+    // 儲存並匯出 Obsidian Markdown (.md)
     function saveCard() {
         const name = document.getElementById("f_name").value.trim();
         const company = document.getElementById("f_company").value.trim();
@@ -639,15 +762,17 @@
         const phone = document.getElementById("f_phone").value.trim();
         const fax = document.getElementById("f_fax").value.trim();
         const email = document.getElementById("f_email").value.trim();
+        const line = document.getElementById("f_line").value.trim();
+        const whatsapp = document.getElementById("f_whatsapp").value.trim();
         const address = document.getElementById("f_address").value.trim();
         const tags = document.getElementById("f_tags").value.split(",").map(t => t.trim()).filter(t => t !== "");
 
         const canvas = document.getElementById("mainCanvas");
         const imgData = canvas.toDataURL();
 
-        const item = { id: Date.now(), name, company, title, mobile, phone, fax, email, address, tags, image: imgData };
+        const item = { id: Date.now(), name, company, title, mobile, phone, fax, email, line, whatsapp, address, tags, image: imgData };
         cardDb.unshift(item);
-        localStorage.setItem("card_db_pwa", JSON.stringify(cardDb));
+        localStorage.setItem("card_db_v9", JSON.stringify(cardDb));
         renderCards();
 
         const md = `---
@@ -659,19 +784,13 @@ mobile: "${mobile}"
 phone: "${phone}"
 fax: "${fax}"
 email: "${email}"
+line: "${line}"
+whatsapp: "${whatsapp}"
 address: "${address}"
 tags:
-${tags.map(t => `  - ${t}`).join("\n")}
----
+${tags.map(t => `  - ${t}`).join("\n")} ---  # 名片資訊：${name} - ${company}  ## 🎇 基本資料 - **姓名**：${name} - **公司**：${company} - **職稱**：${title} - **手機**：${mobile} - **電話**：${phone} - **傳真**：${fax} - **E-mail**：${email} - **LINE ID**：${line} - **WhatsApp ID**：${whatsapp} - **地址**：${address}  ## 🏷️ 標籤 ${tags.map(t => `#${t}`).join(" ")}
 
-# ${name} - ${company}
-- **職稱**：${title}
-- **手機**：${mobile}
-- **電話**：${phone}
-- **傳真**：${fax}
-- **Email**：${email}
-- **地址**：${address}
-
+## 📷 名片原圖
 ![名片原圖](${imgData})
 `;
 
@@ -681,7 +800,7 @@ ${tags.map(t => `  - ${t}`).join("\n")}
         link.download = `${name || '未命名'}_${company || '名片'}.md`;
         link.click();
 
-        alert("名片已儲存並成功匯出 Markdown！");
+        alert("名片已成功儲存並匯出 Markdown (.md) 檔案！");
     }
 
     function renderCards() {
@@ -701,7 +820,7 @@ ${tags.map(t => `  - ${t}`).join("\n")}
                 <p><strong>${c.company || ""}</strong> | ${c.title || ""}</p>
                 <p>📞 ${c.mobile || c.phone || "無電話"}</p>
                 <p>📍 ${c.address || "無地址"}</p>
-                <div>${c.tags.map(t => `<span class="badge">#${t}</span>`).join("")}</div>
+                <div>${c.tags.map(t => `<span class="badge">#\${t}</span>`).join("")}</div>
             `;
             container.appendChild(div);
         });
