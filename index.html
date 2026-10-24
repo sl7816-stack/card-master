@@ -2,652 +2,655 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>數位名片王 Mobile PWA</title>
-    <!-- PWA & Mobile Meta Tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>數位名片王 Card Master</title>
+    
+    <!-- PWA 標準宣告 (連結獨立實體檔案) -->
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-title" content="數位名片王">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1041/1041888.png">
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Tesseract.js OCR Engine -->
+    <!-- 離線 OCR 引擎 Tesseract.js -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
+        :root {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-border: #334155;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --input-bg: #0f172a;
+            --touch-height: 48px;
+        }
+
         * {
+            box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
-            user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            padding-bottom: 90px;
         }
 
-        /* Prevent default scrolling while touch dragging over canvas */
-        .touch-canvas-container {
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--bg-card-border);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .brand-text h1 {
+            font-size: 1.1rem;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .brand-text p {
+            font-size: 0.7rem;
+            margin: 0;
+            color: var(--text-muted);
+        }
+
+        .container {
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .card-box {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .upload-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn-capture {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 90px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 2px dashed var(--primary);
+            border-radius: 14px;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            gap: 6px;
+        }
+
+        .btn-capture input {
+            display: none;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
             touch-action: none;
         }
 
-        /* Custom Touch Scrollbar for Raw Textarea */
-        ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
+        canvas {
+            max-width: 100%;
+            display: block;
         }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
-        .touch-target {
-            min-height: 44px;
-            min-width: 44px;
+        .touch-hint {
+            font-size: 0.75rem;
+            color: #f59e0b;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .form-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .field-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .field-row label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"], textarea {
+            flex: 1;
+            height: var(--touch-height);
+            background: var(--input-bg);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 10px;
+            color: var(--text-main);
+            padding: 0 12px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        textarea {
+            height: auto;
+            padding: 10px 12px;
+            font-family: inherit;
+        }
+
+        .btn-fill {
+            height: var(--touch-height);
+            padding: 0 14px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid var(--primary);
+            color: #a5b4fc;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            width: 100%;
+            height: 52px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .status-bar {
+            font-size: 0.8rem;
+            text-align: center;
+            color: #60a5fa;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid var(--bg-card-border);
+            padding: 12px 16px;
+            z-index: 100;
+        }
+
+        .card-item {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .card-item h3 {
+            margin: 0 0 4px 0;
+            font-size: 1rem;
+        }
+
+        .card-item p {
+            margin: 2px 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            margin-right: 4px;
         }
     </style>
 </head>
-<body class="min-h-screen pb-24">
+<body>
 
-    <!-- 頂部行動版導覽列 -->
-    <header class="bg-indigo-600 text-white sticky top-0 z-30 shadow-md px-4 py-3">
-        <div class="max-w-md mx-auto flex items-center justify-between">
-            <div class="flex items-center space-x-2.5">
-                <div class="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-                    <i class="fa-solid fa-address-card text-lg"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-base leading-tight">數位名片王 PWA</h1>
-                    <p class="text-[11px] text-indigo-100 opacity-90">智慧視覺匡選 · 觸控校正 · 本地運算</p>
-                </div>
-            </div>
-            <span class="text-[10px] bg-indigo-800/80 text-indigo-200 px-2 py-1 rounded-full font-medium border border-indigo-500/30">
-                <i class="fa-solid fa-bolt mr-1"></i>Mobile V8
-            </span>
+<header>
+    <div class="brand">
+        <div class="brand-icon">🎴</div>
+        <div class="brand-text">
+            <h1>數位名片王</h1>
+            <p>離線 OCR · 觸控校對 · PWA</p>
         </div>
-    </header>
+    </div>
+</header>
 
-    <main class="max-w-md mx-auto px-3 pt-4 space-y-4">
+<div class="container">
+    <!-- 上傳/拍照區 -->
+    <div class="card-box">
+        <div class="card-title">📷 拍攝或上傳名片</div>
+        <div class="upload-actions">
+            <label class="btn-capture">
+                <span style="font-size: 24px;">📷</span>
+                <span>直接拍照</span>
+                <input type="file" accept="image/*" capture="environment" onchange="handleFileSelect(event)">
+            </label>
+            <label class="btn-capture" style="background: rgba(16, 185, 129, 0.1); border-color: var(--accent); color: var(--accent);">
+                <span style="font-size: 24px;">🖼️</span>
+                <span>相簿選擇</span>
+                <input type="file" accept="image/*" onchange="handleFileSelect(event)">
+            </label>
+        </div>
+        <div id="statusText" class="status-bar"></div>
+    </div>
 
-        <!-- 區塊一：相機拍照與圖片載入區 (Mobile First Camera Triggers) -->
-        <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <h2 class="text-sm font-bold text-slate-800 mb-3 flex items-center justify-between">
-                <span><i class="fa-solid fa-camera text-indigo-600 mr-1.5"></i>拍攝或上傳名片</span>
-                <span class="text-[11px] text-slate-400 font-normal">支援 JPG / PNG</span>
-            </h2>
+    <!-- 畫框預覽區 -->
+    <div id="previewBox" class="card-box" style="display:none;">
+        <div class="card-title">
+            <span>🔎 觸控匡選重測</span>
+            <button class="btn-fill" onclick="resetImage()">重置全圖</button>
+        </div>
+        <div class="canvas-wrapper">
+            <canvas id="mainCanvas"></canvas>
+        </div>
+        <p class="touch-hint">💡 辨識不準時，請用手指在畫面上直接拉框選擇文字區域。</p>
+    </div>
 
-            <div class="grid grid-cols-2 gap-2.5">
-                <!-- 直接喚起手機後置相機 -->
-                <label class="touch-target bg-indigo-600 active:bg-indigo-700 text-white font-semibold text-xs rounded-xl flex flex-col items-center justify-center p-3 shadow-sm transition active:scale-95 cursor-pointer">
-                    <i class="fa-solid fa-camera text-xl mb-1"></i>
-                    <span>直接拍照</span>
-                    <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-                </label>
-
-                <!-- 從相簿選擇檔案 -->
-                <label class="touch-target bg-slate-100 active:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl flex flex-col items-center justify-center p-3 transition active:scale-95 cursor-pointer border border-slate-200">
-                    <i class="fa-solid fa-images text-xl text-slate-500 mb-1"></i>
-                    <span>相簿選擇</span>
-                    <input type="file" id="galleryInput" accept="image/*" class="hidden">
-                </label>
-            </div>
-
-            <!-- 辨識進度與狀態指示 -->
-            <div id="statusContainer" class="hidden mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
-                <div class="flex items-center space-x-2.5">
-                    <div class="animate-spin text-indigo-600 text-base">
-                        <i class="fa-solid fa-circle-notch"></i>
-                    </div>
-                    <span id="statusText" class="text-xs font-medium text-indigo-900">正在處理中...</span>
-                </div>
-                <span id="progressText" class="text-xs font-bold text-indigo-700">0%</span>
-            </div>
-        </section>
-
-        <!-- 區塊二：觸控視覺匡選 Canvas (Touch Canvas Selection) -->
-        <section id="editorSection" class="hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-4">
-            
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <i class="fa-solid fa-hand-pointer text-indigo-600"></i>
-                        <span>手指拉框精準重掃</span>
-                    </h3>
-                    <button type="button" onclick="resetCropAndOCR()" class="text-xs text-indigo-600 font-semibold active:text-indigo-800 p-1">
-                        <i class="fa-solid fa-arrow-rotate-left mr-1"></i>重置全圖
-                    </button>
-                </div>
-                
-                <!-- 觸控 Drag 匡選區域 Canvas Container -->
-                <div id="canvasContainer" class="touch-canvas-container relative bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center min-h-[220px] max-h-[360px] select-none border border-slate-800 shadow-inner">
-                    <canvas id="mainCanvas" class="max-w-full max-h-[350px] object-contain rounded"></canvas>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-1.5 text-center">
-                    💡 提示：毛筆或特殊字體辨識不佳時，請直接在上方**用手指拉框**匡選該區域。
-                </p>
-                <canvas id="cropCanvas" class="hidden"></canvas>
-            </div>
-
-            <!-- 智慧欄位校對表單 (Mobile Large Touch Targets Form) -->
-            <form id="cardForm" class="space-y-3 pt-2 border-t border-slate-100 text-xs" onsubmit="event.preventDefault();">
-                
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">
-                        姓名 <span class="text-red-500">*</span>
-                        <span class="text-[10px] text-slate-400 font-normal ml-1">(自動漢字形體修復)</span>
-                    </label>
-                    <div class="flex gap-1.5">
-                        <input type="text" id="field_name" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <button type="button" onclick="fillSelectedTo('field_name')" class="touch-target px-3 bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-medium rounded-xl border border-indigo-200 shrink-0 flex items-center justify-center">
-                            ⬅ 帶入
-                        </button>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">職稱 (Title)</label>
-                    <div class="flex gap-1.5">
-                        <input type="text" id="field_title" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <button type="button" onclick="fillSelectedTo('field_title')" class="touch-target px-3 bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-medium rounded-xl border border-indigo-200 shrink-0 flex items-center justify-center">
-                            ⬅ 帶入
-                        </button>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">公司/機構名稱</label>
-                    <div class="flex gap-1.5">
-                        <input type="text" id="field_company" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <button type="button" onclick="fillSelectedTo('field_company')" class="touch-target px-3 bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-medium rounded-xl border border-indigo-200 shrink-0 flex items-center justify-center">
-                            ⬅ 帶入
-                        </button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">行動電話</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_mobile" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_mobile')" class="px-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 shrink-0">帶入</button>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">公司電話</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_phone" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_phone')" class="px-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 shrink-0">帶入</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">傳真 (Fax)</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_fax" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_fax')" class="px-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 shrink-0">帶入</button>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">E-mail</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_email" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_email')" class="px-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 shrink-0">帶入</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">地址 (Address)</label>
-                    <div class="flex gap-1.5">
-                        <input type="text" id="field_address" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <button type="button" onclick="fillSelectedTo('field_address')" class="touch-target px-3 bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-medium rounded-xl border border-indigo-200 shrink-0 flex items-center justify-center">
-                            ⬅ 帶入
-                        </button>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">標籤 Tags (逗號分隔)</label>
-                    <input type="text" id="field_tags" placeholder="保險, 台北, 經紀人" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                </div>
-
-                <!-- OCR 辨識原文面板 (可反白選取帶入) -->
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">
-                        OCR 辨識原文 (用手指反白文字後點對應「帶入」)
-                    </label>
-                    <textarea id="field_raw" rows="4" class="w-full p-2.5 border border-slate-200 bg-slate-50 text-slate-700 rounded-xl font-mono text-xs focus:outline-none leading-relaxed select-text"></textarea>
-                </div>
-            </form>
-
-            <!-- 移動端底欄操作按鈕 -->
-            <div class="pt-2 flex items-center space-x-2">
-                <button type="button" onclick="discardCurrentCard()" class="touch-target w-1/3 bg-slate-100 active:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition">
-                    捨棄
-                </button>
-                <button type="button" onclick="saveAndExportCard()" class="touch-target w-2/3 bg-emerald-600 active:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-file-export text-sm"></i> 儲存並匯出 Obsidian (.md)
-                </button>
-            </div>
-        </section>
-
-        <!-- 區塊三：已儲存名片庫 (Mobile Grid & Search) -->
-        <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <div class="space-y-3 mb-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                        <i class="fa-solid fa-box-archive text-indigo-600"></i>
-                        <span>本地名片庫</span>
-                    </h2>
-                    <span id="cardCountBadge" class="text-[11px] bg-indigo-50 text-indigo-600 font-semibold px-2 py-0.5 rounded-full">0 張</span>
-                </div>
-                
-                <div class="relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
-                    <input type="text" id="searchInput" oninput="renderCardList()" placeholder="搜尋姓名、公司、電話..." class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+    <!-- 表單區 -->
+    <div id="formBox" class="card-box" style="display:none;">
+        <div class="card-title">📝 智慧欄位校對</div>
+        <form class="form-grid" onsubmit="return false;">
+            <div class="field-row">
+                <label>姓名</label>
+                <div class="input-group">
+                    <input type="text" id="f_name">
+                    <button class="btn-fill" onclick="fillSelected('f_name')">⬅ 帶入</button>
                 </div>
             </div>
-
-            <!-- 名片卡片列表 -->
-            <div id="cardGrid" class="space-y-3"></div>
-            
-            <div id="emptyState" class="hidden py-8 text-center text-slate-400">
-                <i class="fa-regular fa-folder-open text-3xl mb-2 block"></i>
-                <p class="text-xs font-medium">尚無名片紀錄，請拍攝或上傳照片</p>
+            <div class="field-row">
+                <label>職稱</label>
+                <div class="input-group">
+                    <input type="text" id="f_title">
+                    <button class="btn-fill" onclick="fillSelected('f_title')">⬅ 帶入</button>
+                </div>
             </div>
-        </section>
+            <div class="field-row">
+                <label>公司名稱</label>
+                <div class="input-group">
+                    <input type="text" id="f_company">
+                    <button class="btn-fill" onclick="fillSelected('f_company')">⬅ 帶入</button>
+                </div>
+            </div>
+            <div class="field-row">
+                <label>手機 (Mobile)</label>
+                <div class="input-group">
+                    <input type="text" id="f_mobile">
+                    <button class="btn-fill" onclick="fillSelected('f_mobile')">⬅ 帶入</button>
+                </div>
+            </div>
+            <div class="field-row">
+                <label>公司電話 (Phone)</label>
+                <div class="input-group">
+                    <input type="text" id="f_phone">
+                    <button class="btn-fill" onclick="fillSelected('f_phone')">⬅ 帶入</button>
+                </div>
+            </div>
+            <div class="field-row">
+                <label>傳真 (Fax)</label>
+                <div class="input-group">
+                    <input type="text" id="f_fax">
+                    <button class="btn-fill" onclick="fillSelected('f_fax')">⬅ 帶入</button>
+                </div>
+            </div>
+            <div class="field-row">
+                <label>E-mail</label>
+                <div class="input-group">
+                    <input type="text" id="f_email">
+                    <button class="btn-fill" onclick="fillSelected('f_email')">⬅ 帶入</button>
+                </div>
+            </div>
+            <div class="field-row">
+                <label>地址 (Address)</label>
+                <div class="input-group">
+                    <input type="text" id="f_address">
+                    <button class="btn-fill" onclick="fillSelected('f_address')">⬅ 帶入</button>
+                </div>
+            </div>
+            <div class="field-row">
+                <label>OCR 原文（選取後按上方「帶入」）</label>
+                <textarea id="f_raw" rows="6"></textarea>
+            </div>
+            <div class="field-row">
+                <label>標籤 Tags（逗號分隔）</label>
+                <input type="text" id="f_tags" value="客戶, 不動產">
+            </div>
+        </form>
+    </div>
 
-    </main>
+    <!-- 本地名片庫 -->
+    <div class="card-box">
+        <div class="card-title">🗂️ 本地名片庫</div>
+        <input type="text" id="searchInput" placeholder="搜尋姓名、公司、電話..." oninput="renderCards()" style="margin-bottom: 12px; width: 100%;">
+        <div id="cardList"></div>
+    </div>
+</div>
 
-    <!-- PWA 註冊腳本與的核心 JavaScript 邏輯 -->
-    <script>
-        // PWA Service Worker Inline Registration
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('PWA Service Worker 註冊成功'))
-                    .catch(err => console.log('Service Worker 註冊未完備（離線模式將在靜態伺服器運作）:', err));
-            });
+<!-- 底部固定儲存按鈕 -->
+<div id="bottomBar" class="bottom-bar" style="display:none;">
+    <button class="btn-primary" onclick="saveCard()">💾 儲存並匯出 Markdown (.md)</button>
+</div>
+
+<script>
+    let cardDb = [];
+    let imgObj = new Image();
+    let isDrawing = false;
+    let startX = 0, startY = 0, endX = 0, endY = 0;
+
+    const SNAME_MAP = {"麻": "霖", "韋": "偉", "時人": "偉", "高時人": "高作偉"};
+    const BLACKLIST = ["GSP", "gsp", "金牌服務", "國家認證", "樂在工作", "成就宏偉", "選擇住商", "永保安康"];
+
+    // 註冊標準 PWA Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('PWA ServiceWorker 註冊成功:', reg.scope))
+                .catch(err => console.log('ServiceWorker 註冊失敗:', err));
+        });
+    }
+
+    window.onload = function() {
+        const saved = localStorage.getItem("card_db_pwa");
+        if (saved) {
+            cardDb = JSON.parse(saved);
+            renderCards();
+        }
+        initCanvasEvents();
+    };
+
+    function setStatus(msg) {
+        document.getElementById("statusText").innerText = msg;
+    }
+
+    function handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            imgObj.onload = function() {
+                document.getElementById("previewBox").style.display = "block";
+                document.getElementById("formBox").style.display = "block";
+                document.getElementById("bottomBar").style.display = "block";
+                drawOriginalCanvas();
+                runOCR(imgObj.src);
+            };
+            imgObj.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function drawOriginalCanvas() {
+        const canvas = document.getElementById("mainCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = imgObj.width;
+        canvas.height = imgObj.height;
+        ctx.drawImage(imgObj, 0, 0);
+    }
+
+    function resetImage() {
+        drawOriginalCanvas();
+        runOCR(imgObj.src);
+    }
+
+    async function runOCR(imageSource) {
+        setStatus("正在執行離線辨識 (Tesseract.js)...");
+        try {
+            const worker = await Tesseract.createWorker('chi_tra+eng');
+            await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK });
+            const ret = await worker.recognize(imageSource);
+            await worker.terminate();
+
+            const text = ret.data.text;
+            document.getElementById("f_raw").value = text;
+            autoParseFields(text);
+            setStatus("辨識完畢！");
+        } catch (err) {
+            console.error(err);
+            setStatus("辨識失敗。");
+        }
+    }
+
+    function autoParseFields(text) {
+        document.getElementById("f_name").value = "";
+        document.getElementById("f_title").value = "";
+        document.getElementById("f_company").value = "";
+        document.getElementById("f_mobile").value = "";
+        document.getElementById("f_phone").value = "";
+        document.getElementById("f_fax").value = "";
+        document.getElementById("f_email").value = "";
+        document.getElementById("f_address").value = "";
+
+        // 手機
+        const mob = text.match(/09\d{2}[-\s]?\d{3}[-\s]?\d{3}/);
+        if (mob) document.getElementById("f_mobile").value = mob[0].replace(/\s+/g, '');
+
+        // 電話 & 傳真
+        const phones = text.match(/(\(?0\d{1,2}\)?\s?\d{3,4}[-\s]?\d{4})/g);
+        if (phones) {
+            const land = phones.filter(p => !p.includes("09"));
+            if (land.length > 0) document.getElementById("f_phone").value = land[0].replace(/\s+/g, '');
+            if (land.length > 1) document.getElementById("f_fax").value = land[1].replace(/\s+/g, '');
         }
 
-        let cardDatabase = [];
-        let originalImgBase64 = "";
-        let originalImgObject = new Image();
+        // Email
+        const email = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (email) document.getElementById("f_email").value = email[0];
 
-        // Canvas 觸控/滑鼠 視覺拉框狀態
-        let canvas, ctx;
-        let isSelecting = false;
-        let startX = 0, startY = 0;
-        let cropX = 0, cropY = 0, cropW = 0, cropH = 0;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-        // 常見書法/藝術字 OCR 錯別字偏旁修復字典
-        const CHARACTER_CORRECTIONS = {
-            "麻": "霖",
-            "麻霖": "霖",
-            "松麻": "松霖",
-            "作偉": "偉"
+        // 地址
+        const addr = lines.find(l => (l.includes("市") || l.includes("縣")) && (l.includes("路") || l.includes("街") || l.includes("號")));
+        if (addr) document.getElementById("f_address").value = addr.replace(/\s+/g, '');
+
+        // 公司
+        const comp = lines.find(l => l.includes("公司") || l.includes("不動產") || l.includes("房屋") || l.includes("加盟店") || l.includes("團隊"));
+        if (comp) document.getElementById("f_company").value = comp.replace(/\s+/g, '');
+
+        // 職稱
+        const titles = ["店長", "經理", "業務", "專員", "主任", "總經理", "副總"];
+        for (let l of lines) {
+            for (let t of titles) {
+                if (l.includes(t)) {
+                    document.getElementById("f_title").value = t;
+                    break;
+                }
+            }
+        }
+
+        // 姓名（含偏旁修復與黑名單過濾）
+        for (let l of lines) {
+            let clean = l.replace(/[^\u4e00-\u9fa5]/g, '');
+            Object.keys(SNAME_MAP).forEach(k => clean = clean.replace(new RegExp(k, 'g'), SNAME_MAP[k]));
+            
+            const isBlack = BLACKLIST.some(b => l.includes(b));
+            if (!isBlack && clean.length >= 2 && clean.length <= 4) {
+                if (!clean.includes("公司") && !clean.includes("店長") && !clean.includes("不動產")) {
+                    document.getElementById("f_name").value = clean;
+                    break;
+                }
+            }
+        }
+    }
+
+    function initCanvasEvents() {
+        const canvas = document.getElementById("mainCanvas");
+
+        const handleStart = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches ? e.touches[0] : e;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            startX = (touch.clientX - rect.left) * scaleX;
+            startY = (touch.clientY - rect.top) * scaleY;
+            isDrawing = true;
         };
 
-        const NOISE_BLACKLIST = [
-            "客觀", "專業", "誠信", "負責", "保險經紀人", "股份有限公司", "SINCE", "GSP", "樂在工作", "成就"
-        ];
+        const handleMove = (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches ? e.touches[0] : e;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
 
-        window.addEventListener('DOMContentLoaded', () => {
-            loadDatabaseFromStorage();
-            setupInputListeners();
-            initTouchCanvas();
-        });
+            endX = (touch.clientX - rect.left) * scaleX;
+            endY = (touch.clientY - rect.top) * scaleY;
 
-        function loadDatabaseFromStorage() {
-            const saved = localStorage.getItem("card_pwa_v8_db");
-            if (saved) {
-                try { cardDatabase = JSON.parse(saved); } catch (e) { cardDatabase = []; }
-            }
-            renderCardList();
+            drawOriginalCanvas();
+            const ctx = canvas.getContext("2d");
+            ctx.strokeStyle = "#10b981";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+        };
+
+        const handleEnd = () => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            cropAndScan();
+        };
+
+        canvas.addEventListener("mousedown", handleStart);
+        canvas.addEventListener("mousemove", handleMove);
+        canvas.addEventListener("mouseup", handleEnd);
+
+        canvas.addEventListener("touchstart", handleStart, { passive: true });
+        canvas.addEventListener("touchmove", handleMove, { passive: true });
+        canvas.addEventListener("touchend", handleEnd);
+    }
+
+    function cropAndScan() {
+        const canvas = document.getElementById("mainCanvas");
+        const width = Math.abs(endX - startX);
+        const height = Math.abs(endY - startY);
+        if (width < 20 || height < 20) return;
+
+        const cropCanvas = document.createElement("canvas");
+        cropCanvas.width = width;
+        cropCanvas.height = height;
+        const ctx = cropCanvas.getContext("2d");
+
+        const minX = Math.min(startX, endX);
+        const minY = Math.min(startY, endY);
+        ctx.drawImage(canvas, minX, minY, width, height, 0, 0, width, height);
+
+        runOCR(cropCanvas.toDataURL());
+    }
+
+    function fillSelected(targetId) {
+        const textarea = document.getElementById("f_raw");
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        if (start !== undefined && end !== undefined && start !== end) {
+            let txt = textarea.value.substring(start, end).trim();
+            txt = txt.replace(/([\u4e00-\u9fa5])\s+([\u4e00-\u9fa5])/g, '$1$2');
+            document.getElementById(targetId).value = txt;
+        } else {
+            alert("請先在下方『OCR 原文』中用手指選取文字！");
         }
+    }
 
-        function saveDatabaseToStorage() {
-            localStorage.setItem("card_pwa_v8_db", JSON.stringify(cardDatabase));
-        }
+    function saveCard() {
+        const name = document.getElementById("f_name").value.trim();
+        const company = document.getElementById("f_company").value.trim();
+        const title = document.getElementById("f_title").value.trim();
+        const mobile = document.getElementById("f_mobile").value.trim();
+        const phone = document.getElementById("f_phone").value.trim();
+        const fax = document.getElementById("f_fax").value.trim();
+        const email = document.getElementById("f_email").value.trim();
+        const address = document.getElementById("f_address").value.trim();
+        const tags = document.getElementById("f_tags").value.split(",").map(t => t.trim()).filter(t => t !== "");
 
-        function setupInputListeners() {
-            const cameraInput = document.getElementById('cameraInput');
-            const galleryInput = document.getElementById('galleryInput');
+        const canvas = document.getElementById("mainCanvas");
+        const imgData = canvas.toDataURL();
 
-            const handleFileEvent = (e) => {
-                if (e.target.files && e.target.files[0]) {
-                    handleFile(e.target.files[0]);
-                }
-            };
+        const item = { id: Date.now(), name, company, title, mobile, phone, fax, email, address, tags, image: imgData };
+        cardDb.unshift(item);
+        localStorage.setItem("card_db_pwa", JSON.stringify(cardDb));
+        renderCards();
 
-            cameraInput.addEventListener('change', handleFileEvent);
-            galleryInput.addEventListener('change', handleFileEvent);
-        }
-
-        function handleFile(file) {
-            if (!file.type.startsWith('image/')) {
-                alert('請選擇有效的圖片檔案！');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                originalImgBase64 = e.target.result;
-                originalImgObject = new Image();
-                originalImgObject.onload = () => {
-                    document.getElementById('editorSection').classList.remove('hidden');
-                    drawFullCanvas();
-                    runFullOCR();
-                };
-                originalImgObject.src = originalImgBase64;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // ==========================================
-        // 觸控 (Touch) & 滑鼠 (Mouse) 雙相容 Canvas 匡選
-        // ==========================================
-        function initTouchCanvas() {
-            canvas = document.getElementById('mainCanvas');
-            ctx = canvas.getContext('2d');
-
-            const getPos = (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-
-                let clientX = e.clientX;
-                let clientY = e.clientY;
-
-                if (e.touches && e.touches.length > 0) {
-                    clientX = e.touches[0].clientX;
-                    clientY = e.touches[0].clientY;
-                }
-
-                return {
-                    x: (clientX - rect.left) * scaleX,
-                    y: (clientY - rect.top) * scaleY
-                };
-            };
-
-            const startSelection = (e) => {
-                const pos = getPos(e);
-                startX = pos.x;
-                startY = pos.y;
-                isSelecting = true;
-            };
-
-            const moveSelection = (e) => {
-                if (!isSelecting) return;
-                const pos = getPos(e);
-
-                drawFullCanvas();
-
-                // 繪製匡選框
-                ctx.strokeStyle = '#6366f1';
-                ctx.lineWidth = Math.max(2, canvas.width / 300);
-                ctx.setLineDash([6, 6]);
-                ctx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
-                ctx.setLineDash([]);
-
-                // 遮罩效果
-                ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
-                ctx.fillRect(startX, startY, pos.x - startX, pos.y - startY);
-            };
-
-            const endSelection = (e) => {
-                if (!isSelecting) return;
-                isSelecting = false;
-
-                let endX = startX, endY = startY;
-                if (e.changedTouches && e.changedTouches.length > 0) {
-                    const rect = canvas.getBoundingClientRect();
-                    const scaleX = canvas.width / rect.width;
-                    const scaleY = canvas.height / rect.height;
-                    endX = (e.changedTouches[0].clientX - rect.left) * scaleX;
-                    endY = (e.changedTouches[0].clientY - rect.top) * scaleY;
-                }
-
-                cropX = Math.min(startX, endX);
-                cropY = Math.min(startY, endY);
-                cropW = Math.abs(endX - startX);
-                cropH = Math.abs(endY - startY);
-
-                if (cropW > 15 && cropH > 15) {
-                    runRegionOCR(cropX, cropY, cropW, cropH);
-                }
-            };
-
-            // 滑鼠事件
-            canvas.addEventListener('mousedown', startSelection);
-            canvas.addEventListener('mousemove', moveSelection);
-            canvas.addEventListener('mouseup', endSelection);
-
-            // 手指 Touch 觸控事件
-            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startSelection(e); }, { passive: false });
-            canvas.addEventListener('touchmove', (e) => { e.preventDefault(); moveSelection(e); }, { passive: false });
-            canvas.addEventListener('touchend', (e) => { endSelection(e); });
-        }
-
-        function drawFullCanvas() {
-            canvas.width = originalImgObject.width;
-            canvas.height = originalImgObject.height;
-            ctx.drawImage(originalImgObject, 0, 0);
-        }
-
-        function resetCropAndOCR() {
-            drawFullCanvas();
-            runFullOCR();
-        }
-
-        // ==========================================
-        // OCR 解析邏輯 (Tesseract.js Engine)
-        // ==========================================
-        async function runFullOCR() {
-            updateStatus("全圖辨識中...", "35%");
-            try {
-                const worker = await Tesseract.createWorker('chi_tra+eng');
-                const ret = await worker.recognize(originalImgBase64);
-                const rawText = ret.data.text;
-                await worker.terminate();
-
-                document.getElementById('field_raw').value = rawText;
-                parseFieldsV8(rawText, null);
-                updateStatus("全圖辨識完成！", "100%");
-                setTimeout(() => document.getElementById('statusContainer').classList.add('hidden'), 1000);
-            } catch (err) {
-                console.error(err);
-                updateStatus("辨識失敗，請嘗試拉框匡選。", "0%");
-            }
-        }
-
-        async function runRegionOCR(rx, ry, rw, rh) {
-            updateStatus("匡選高解析專用辨識...", "50%");
-
-            const cropCanvas = document.getElementById('cropCanvas');
-            const cropCtx = cropCanvas.getContext('2d');
-            
-            const scale = 2.5;
-            cropCanvas.width = rw * scale;
-            cropCanvas.height = rh * scale;
-
-            cropCtx.drawImage(originalImgObject, rx, ry, rw, rh, 0, 0, rw * scale, rh * scale);
-
-            // 二值化強化
-            const imgData = cropCtx.getImageData(0, 0, cropCanvas.width, cropCanvas.height);
-            const data = imgData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-                gray = gray < 150 ? 0 : 255;
-                data[i] = gray; data[i+1] = gray; data[i+2] = gray;
-            }
-            cropCtx.putImageData(imgData, 0, 0);
-
-            const croppedBase64 = cropCanvas.toDataURL('image/png');
-
-            try {
-                const worker = await Tesseract.createWorker('chi_tra');
-                await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SINGLE_LINE });
-                const ret = await worker.recognize(croppedBase64);
-                let regionText = ret.data.text.trim();
-                await worker.terminate();
-
-                regionText = applyCharacterCorrections(regionText);
-                const cleanedName = regionText.replace(/[^\u4e00-\u9fa5]/g, '');
-
-                if (cleanedName) {
-                    document.getElementById('field_name').value = cleanedName;
-                }
-
-                const currentRaw = document.getElementById('field_raw').value;
-                document.getElementById('field_raw').value = `[匡選讀取]: ${regionText}\n` + currentRaw;
-
-                updateStatus(`匡選結果：${regionText}`, "100%");
-                setTimeout(() => document.getElementById('statusContainer').classList.add('hidden'), 1200);
-
-            } catch (err) {
-                console.error(err);
-                updateStatus("區域辨識異常", "0%");
-            }
-        }
-
-        // ==========================================
-        // 智慧欄位提取與字體修復引擎
-        // ==========================================
-        function parseFieldsV8(rawText, regionName) {
-            ['name', 'title', 'company', 'mobile', 'phone', 'fax', 'email', 'address', 'tags'].forEach(id => {
-                document.getElementById(`field_${id}`).value = '';
-            });
-
-            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
-            // Email
-            const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-            if (emailMatch) document.getElementById('field_email').value = emailMatch[0];
-
-            // Mobile (09xx)
-            const mobileMatch = rawText.match(/(?:09\d{2}[-\s]?\d{3}[-\s]?\d{3})|(?:\+?886[-\s]?9\d{2}[-\s]?\d{3}[-\s]?\d{3})/);
-            if (mobileMatch) document.getElementById('field_mobile').value = mobileMatch[0].replace(/\s+/g, '');
-
-            // Phone / Fax
-            lines.forEach(line => {
-                const phoneMatch = line.match(/(0\d{1,2}[-\s]?\d{7,8})/);
-                if (line.includes('傳') || line.includes('真') || line.toLowerCase().includes('fax')) {
-                    if (phoneMatch) document.getElementById('field_fax').value = phoneMatch[0];
-                } else if (line.includes('電') || line.includes('話') || line.toLowerCase().includes('tel')) {
-                    if (phoneMatch) document.getElementById('field_phone').value = phoneMatch[0];
-                }
-            });
-
-            // Address
-            const addrLine = lines.find(l => (l.includes('市') || l.includes('縣')) && (l.includes('路') || l.includes('街') || l.includes('段')));
-            if (addrLine) document.getElementById('field_address').value = addrLine.replace(/\s+/g, '');
-
-            // Company
-            const compKeywords = ['股份有限公司', '保險經紀人', '保經', '團隊', '有限公司', '集團', '企業'];
-            const compLine = lines.find(l => compKeywords.some(k => l.includes(k)));
-            if (compLine) document.getElementById('field_company').value = compLine.replace(/\s+/g, '');
-
-            // Name
-            let detectedName = regionName || "";
-            if (!detectedName) {
-                for (let line of lines) {
-                    let cleaned = line.replace(/[0-9a-zA-Z\s]/g, '');
-                    if (NOISE_BLACKLIST.some(b => cleaned.includes(b))) continue;
-                    cleaned = applyCharacterCorrections(cleaned);
-                    if (/^[\u4e00-\u9fa5]{2,4}$/.test(cleaned)) {
-                        detectedName = cleaned;
-                        break;
-                    }
-                }
-            }
-            document.getElementById('field_name').value = detectedName;
-
-            // Tags
-            const tags = ['名片'];
-            if (document.getElementById('field_company').value) tags.push('商業');
-            document.getElementById('field_tags').value = tags.join(', ');
-        }
-
-        function applyCharacterCorrections(text) {
-            let result = text;
-            for (let [wrong, correct] of Object.entries(CHARACTER_CORRECTIONS)) {
-                result = result.replace(new RegExp(wrong, 'g'), correct);
-            }
-            return result;
-        }
-
-        function updateStatus(text, progress) {
-            const container = document.getElementById('statusContainer');
-            container.classList.remove('hidden');
-            document.getElementById('statusText').innerText = text;
-            document.getElementById('progressText').innerText = progress;
-        }
-
-        function fillSelectedTo(fieldId) {
-            const textarea = document.getElementById('field_raw');
-            const selectedText = window.getSelection().toString().trim() || 
-                                 textarea.value.substring(textarea.selectionStart, textarea.selectionEnd).trim();
-
-            if (!selectedText) {
-                alert('請先在「OCR 辨識原文」框內反白選取文字！');
-                return;
-            }
-
-            let finalValue = selectedText;
-            if (fieldId === 'field_name') {
-                finalValue = applyCharacterCorrections(selectedText.replace(/\s+/g, ''));
-            }
-
-            document.getElementById(fieldId).value = finalValue;
-        }
-
-        function discardCurrentCard() {
-            document.getElementById('editorSection').classList.add('hidden');
-            document.getElementById('cardForm').reset();
-        }
-
-        // ==========================================
-        // 儲存與匯出 Obsidian Markdown
-        // ==========================================
-        function saveAndExportCard() {
-            const name = document.getElementById('field_name').value.trim();
-            if (!name) {
-                alert('請至少確認姓名欄位！');
-                return;
-            }
-
-            const company = document.getElementById('field_company').value.trim();
-            const title = document.getElementById('field_title').value.trim();
-            const mobile = document.getElementById('field_mobile').value.trim();
-            const phone = document.getElementById('field_phone').value.trim();
-            const fax = document.getElementById('field_fax').value.trim();
-            const email = document.getElementById('field_email').value.trim();
-            const address = document.getElementById('field_address').value.trim();
-            const rawText = document.getElementById('field_raw').value;
-            const tagsInput = document.getElementById('field_tags').value;
-            const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t !== '');
-
-            const cardRecord = {
-                id: Date.now(),
-                name, company, title, mobile, phone, fax, email, address, tags,
-                rawText,
-                image: originalImgBase64,
-                createdAt: new Date().toISOString()
-            };
-
-            cardDatabase.unshift(cardRecord);
-            saveDatabaseToStorage();
-            renderCardList();
-
-            const mdContent = `---
+        const md = `---
 type: card
 name: "${name}"
 company: "${company}"
@@ -658,108 +661,52 @@ fax: "${fax}"
 email: "${email}"
 address: "${address}"
 tags:
-${tags.map(t => `  - ${t}`).join('\n')}
-created: ${cardRecord.createdAt}
+${tags.map(t => `  - ${t}`).join("\n")}
 ---
 
-# 📇 名片：${name} ${company ? '- ' + company : ''}
+# ${name} - ${company}
+- **職稱**：${title}
+- **手機**：${mobile}
+- **電話**：${phone}
+- **傳真**：${fax}
+- **Email**：${email}
+- **地址**：${address}
 
-## 👤 基本資訊
-- **姓名**：${name}
-- **職稱**：${title || '未指定'}
-- **公司**：${company || '未指定'}
-- **行動電話**：${mobile || '無'}
-- **公司電話**：${phone || '無'}
-- **傳真**：${fax || '無'}
-- **E-mail**：${email || '無'}
-- **地址**：${address || '無'}
-
-## 🏷️ 標籤
-${tags.map(t => `#${t}`).join(' ')}
-
-## 📝 OCR 原文
-\`\`\`text
-${rawText}
-\`\`\`
-
-## 📷 名片圖檔
-![${name}](${originalImgBase64})
+![名片原圖](${imgData})
 `;
 
-            const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            const sanitize = (s) => s.replace(/[\\/:*?"<>|]/g, '_');
-            link.download = `${sanitize(name)}_${sanitize(company || '名片')}.md`;
-            link.click();
+        const blob = new Blob([md], { type: "text/markdown;charset=utf-8;" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `${name || '未命名'}_${company || '名片'}.md`;
+        link.click();
 
-            discardCurrentCard();
-            alert(`名片 [${name}] 已成功儲存並匯出 Markdown (.md)！`);
-        }
+        alert("名片已儲存並成功匯出 Markdown！");
+    }
 
-        // ==========================================
-        // 渲染行動版名片庫
-        // ==========================================
-        function renderCardList() {
-            const grid = document.getElementById('cardGrid');
-            const emptyState = document.getElementById('emptyState');
-            const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+    function renderCards() {
+        const kw = document.getElementById("searchInput").value.toLowerCase();
+        const container = document.getElementById("cardList");
+        container.innerHTML = "";
 
-            grid.innerHTML = '';
+        const filtered = cardDb.filter(c => 
+            `${c.name} ${c.company} ${c.title} ${c.mobile} ${c.phone} ${c.address} ${c.tags.join(" ")}`.toLowerCase().includes(kw)
+        );
 
-            const filtered = cardDatabase.filter(card => {
-                const searchStr = `${card.name} ${card.company} ${card.title} ${card.mobile} ${card.phone} ${card.email} ${card.address} ${card.tags.join(' ')}`.toLowerCase();
-                return searchStr.includes(keyword);
-            });
+        filtered.forEach(c => {
+            const div = document.createElement("div");
+            div.className = "card-item";
+            div.innerHTML = `
+                <h3>${c.name || "未命名"}</h3>
+                <p><strong>${c.company || ""}</strong> | ${c.title || ""}</p>
+                <p>📞 ${c.mobile || c.phone || "無電話"}</p>
+                <p>📍 ${c.address || "無地址"}</p>
+                <div>${c.tags.map(t => `<span class="badge">#${t}</span>`).join("")}</div>
+            `;
+            container.appendChild(div);
+        });
+    }
+</script>
 
-            document.getElementById('cardCountBadge').innerText = `${filtered.length} 張`;
-
-            if (filtered.length === 0) {
-                emptyState.classList.remove('hidden');
-                return;
-            }
-            emptyState.classList.add('hidden');
-
-            filtered.forEach(card => {
-                const cardEl = document.createElement('div');
-                cardEl.className = 'bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col justify-between';
-                cardEl.innerHTML = `
-                    <div class="flex p-3 gap-3">
-                        <div class="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden shrink-0 border border-slate-100">
-                            <img src="${card.image}" alt="${escapeHtml(card.name)}" class="w-full h-full object-cover">
-                        </div>
-                        <div class="flex-1 min-w-0 text-xs">
-                            <div class="flex items-center justify-between mb-0.5">
-                                <h4 class="font-bold text-sm text-slate-800 truncate">${escapeHtml(card.name)}</h4>
-                                <button onclick="deleteCard(${card.id})" class="text-slate-400 active:text-red-600 p-1">
-                                    <i class="fa-solid fa-trash-can text-xs"></i>
-                                </button>
-                            </div>
-                            <p class="text-indigo-600 font-medium truncate mb-1">${escapeHtml(card.title || '無職稱')}</p>
-                            <p class="text-slate-600 font-medium truncate mb-1">${escapeHtml(card.company || '未標示公司')}</p>
-                            ${card.mobile ? `<p class="text-slate-500 text-[11px]"><i class="fa-solid fa-mobile-screen mr-1 text-slate-400"></i>${escapeHtml(card.mobile)}</p>` : ''}
-                        </div>
-                    </div>
-                    <div class="px-3 py-1.5 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-1">
-                        ${card.tags.map(t => `<span class="bg-indigo-50 text-indigo-600 text-[10px] px-2 py-0.5 rounded-full font-medium">#${escapeHtml(t)}</span>`).join('')}
-                    </div>
-                `;
-                grid.appendChild(cardEl);
-            });
-        }
-
-        function deleteCard(id) {
-            if (confirm('確定要刪除這張名片紀錄嗎？')) {
-                cardDatabase = cardDatabase.filter(c => c.id !== id);
-                saveDatabaseToStorage();
-                renderCardList();
-            }
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-        }
-    </script>
 </body>
 </html>
