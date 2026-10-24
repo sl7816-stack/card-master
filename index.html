@@ -2,292 +2,311 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>數位名片王 V7 - 智慧視覺匡選與詞法修復版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>數位名片王 Mobile PWA</title>
+    <!-- PWA & Mobile Meta Tags -->
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome 圖示 -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Tesseract.js 本地 OCR 引擎 -->
+    <!-- Tesseract.js OCR Engine -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f8fafc;
             color: #0f172a;
+            user-select: none;
         }
+
+        /* Prevent default scrolling while touch dragging over canvas */
+        .touch-canvas-container {
+            touch-action: none;
+        }
+
+        /* Custom Touch Scrollbar for Raw Textarea */
         ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 4px;
+            height: 4px;
         }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        
-        .crop-canvas-overlay {
-            cursor: crosshair;
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        .touch-target {
+            min-height: 44px;
+            min-width: 44px;
         }
     </style>
 </head>
-<body class="min-h-screen pb-12">
+<body class="min-h-screen pb-24">
 
-    <!-- 頂部標題列 -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-md">
-                    <i class="fa-solid fa-address-card text-xl"></i>
+    <!-- 頂部行動版導覽列 -->
+    <header class="bg-indigo-600 text-white sticky top-0 z-30 shadow-md px-4 py-3">
+        <div class="max-w-md mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-2.5">
+                <div class="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+                    <i class="fa-solid fa-address-card text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg text-slate-800 leading-none flex items-center gap-2">
-                        數位名片王 
-                        <span class="text-[11px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">V7 Visual Region & Corrector</span>
-                    </h1>
-                    <p class="text-xs text-slate-500 mt-1">智慧視覺框選 OCR · 漢字形體校正 · 全自動欄位歸類 · 100% 本地運算</p>
+                    <h1 class="font-bold text-base leading-tight">數位名片王 PWA</h1>
+                    <p class="text-[11px] text-indigo-100 opacity-90">智慧視覺匡選 · 觸控校正 · 本地運算</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-3 text-xs text-slate-500">
-                <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
-                    <i class="fa-solid fa-shield-halved mr-1.5"></i> 無伺服器風險 (100% 本地運算)
-                </span>
-            </div>
+            <span class="text-[10px] bg-indigo-800/80 text-indigo-200 px-2 py-1 rounded-full font-medium border border-indigo-500/30">
+                <i class="fa-solid fa-bolt mr-1"></i>Mobile V8
+            </span>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+    <main class="max-w-md mx-auto px-3 pt-4 space-y-4">
 
-        <!-- 區塊一：上傳與控制 -->
-        <section class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mb-6">
-            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                    <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-camera text-indigo-600"></i> 上傳名片相片
-                    </h2>
-                    <p class="text-xs text-slate-500 mt-1">上傳後系統將自動進行全圖高解析 OCR；若毛筆或藝術字姓名辨識有誤，可直接在圖上「拉框」重新精密讀取！</p>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <label for="imageLoader" class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm px-4 py-2 rounded-lg shadow-sm transition inline-flex items-center gap-2">
-                        <i class="fa-solid fa-file-arrow-up"></i> 選擇名片照片
-                    </label>
-                    <input type="file" id="imageLoader" accept="image/*" class="hidden">
-                </div>
+        <!-- 區塊一：相機拍照與圖片載入區 (Mobile First Camera Triggers) -->
+        <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <h2 class="text-sm font-bold text-slate-800 mb-3 flex items-center justify-between">
+                <span><i class="fa-solid fa-camera text-indigo-600 mr-1.5"></i>拍攝或上傳名片</span>
+                <span class="text-[11px] text-slate-400 font-normal">支援 JPG / PNG</span>
+            </h2>
+
+            <div class="grid grid-cols-2 gap-2.5">
+                <!-- 直接喚起手機後置相機 -->
+                <label class="touch-target bg-indigo-600 active:bg-indigo-700 text-white font-semibold text-xs rounded-xl flex flex-col items-center justify-center p-3 shadow-sm transition active:scale-95 cursor-pointer">
+                    <i class="fa-solid fa-camera text-xl mb-1"></i>
+                    <span>直接拍照</span>
+                    <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+                </label>
+
+                <!-- 從相簿選擇檔案 -->
+                <label class="touch-target bg-slate-100 active:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl flex flex-col items-center justify-center p-3 transition active:scale-95 cursor-pointer border border-slate-200">
+                    <i class="fa-solid fa-images text-xl text-slate-500 mb-1"></i>
+                    <span>相簿選擇</span>
+                    <input type="file" id="galleryInput" accept="image/*" class="hidden">
+                </label>
             </div>
 
-            <!-- 拖曳區 -->
-            <div id="dropZone" class="mt-4 border-2 border-dashed border-slate-300 rounded-xl p-6 text-center bg-slate-50 hover:bg-slate-100/80 transition cursor-pointer">
-                <i class="fa-solid fa-images text-3xl text-slate-400 mb-2"></i>
-                <p class="text-sm font-medium text-slate-700">拖曳名片圖片至此，或點擊上傳</p>
-                <p class="text-xs text-slate-400 mt-1">支援清晰拍攝之 JPG, PNG, WEBP 名片</p>
-            </div>
-
-            <!-- 處理進度 -->
-            <div id="statusContainer" class="hidden mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="animate-spin text-indigo-600 text-lg">
+            <!-- 辨識進度與狀態指示 -->
+            <div id="statusContainer" class="hidden mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <div class="animate-spin text-indigo-600 text-base">
                         <i class="fa-solid fa-circle-notch"></i>
                     </div>
-                    <span id="statusText" class="text-xs font-medium text-indigo-900">正在執行全圖區域掃描與多維解析...</span>
+                    <span id="statusText" class="text-xs font-medium text-indigo-900">正在處理中...</span>
                 </div>
                 <span id="progressText" class="text-xs font-bold text-indigo-700">0%</span>
             </div>
         </section>
 
-        <!-- 區塊二：編輯與校對面板 -->
-        <section id="editorSection" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+        <!-- 區塊二：觸控視覺匡選 Canvas (Touch Canvas Selection) -->
+        <section id="editorSection" class="hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-4">
             
-            <!-- 左欄：視覺化 Canvas 框選與圖像預覽 -->
-            <div class="lg:col-span-6 bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-hand-pointer text-indigo-600"></i>
+                        <span>手指拉框精準重掃</span>
+                    </h3>
+                    <button type="button" onclick="resetCropAndOCR()" class="text-xs text-indigo-600 font-semibold active:text-indigo-800 p-1">
+                        <i class="fa-solid fa-arrow-rotate-left mr-1"></i>重置全圖
+                    </button>
+                </div>
+                
+                <!-- 觸控 Drag 匡選區域 Canvas Container -->
+                <div id="canvasContainer" class="touch-canvas-container relative bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center min-h-[220px] max-h-[360px] select-none border border-slate-800 shadow-inner">
+                    <canvas id="mainCanvas" class="max-w-full max-h-[350px] object-contain rounded"></canvas>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1.5 text-center">
+                    💡 提示：毛筆或特殊字體辨識不佳時，請直接在上方**用手指拉框**匡選該區域。
+                </p>
+                <canvas id="cropCanvas" class="hidden"></canvas>
+            </div>
+
+            <!-- 智慧欄位校對表單 (Mobile Large Touch Targets Form) -->
+            <form id="cardForm" class="space-y-3 pt-2 border-t border-slate-100 text-xs" onsubmit="event.preventDefault();">
+                
                 <div>
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                            <i class="fa-solid fa-crop text-indigo-600"></i> 視覺化拉框精準重掃
-                        </h3>
-                        <span class="text-[11px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-medium">
-                            <i class="fa-solid fa-hand-pointer mr-1"></i>在圖上拖曳拉框可直接重描姓名
-                        </span>
-                    </div>
-
-                    <!-- 互動 Canvas Container -->
-                    <div id="canvasContainer" class="relative bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center p-2 min-h-[320px] max-h-[500px] select-none">
-                        <canvas id="mainCanvas" class="crop-canvas-overlay max-w-full max-h-[480px] object-contain rounded"></canvas>
-                    </div>
-
-                    <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
-                        <span>按住滑鼠左鍵並拖曳，可匡選特定的姓名或難辨識文字。</span>
-                        <button onclick="resetCropAndOCR()" class="text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1">
-                            <i class="fa-solid fa-arrow-rotate-left"></i> 重置全圖
+                    <label class="block font-semibold text-slate-700 mb-1">
+                        姓名 <span class="text-red-500">*</span>
+                        <span class="text-[10px] text-slate-400 font-normal ml-1">(自動漢字形體修復)</span>
+                    </label>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="field_name" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <button type="button" onclick="fillSelectedTo('field_name')" class="touch-target px-3 bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-medium rounded-xl border border-indigo-200 shrink-0 flex items-center justify-center">
+                            ⬅ 帶入
                         </button>
                     </div>
                 </div>
 
-                <!-- 隱藏的輔助 Canvas -->
-                <canvas id="cropCanvas" class="hidden"></canvas>
-            </div>
-
-            <!-- 右欄：智慧欄位校對 -->
-            <div class="lg:col-span-6 bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
-                    <h3 class="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-pen-to-square text-indigo-600"></i> 智慧欄位校對面板
-                    </h3>
-                    <span class="text-xs text-slate-400">校對無誤後點擊儲存</span>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">職稱 (Title)</label>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="field_title" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <button type="button" onclick="fillSelectedTo('field_title')" class="touch-target px-3 bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-medium rounded-xl border border-indigo-200 shrink-0 flex items-center justify-center">
+                            ⬅ 帶入
+                        </button>
+                    </div>
                 </div>
 
-                <form id="cardForm" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs" onsubmit="event.preventDefault();">
-                    
-                    <div>
-                        <label class="block font-medium text-slate-700 mb-1">
-                            姓名 <span class="text-red-500">*</span>
-                            <span class="text-[10px] text-slate-400 font-normal ml-1">(自動字形與偏旁修復)</span>
-                        </label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_name" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800">
-                            <button type="button" onclick="fillSelectedTo('field_name')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded text-[11px] whitespace-nowrap">帶入</button>
-                        </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">公司/機構名稱</label>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="field_company" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <button type="button" onclick="fillSelectedTo('field_company')" class="touch-target px-3 bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-medium rounded-xl border border-indigo-200 shrink-0 flex items-center justify-center">
+                            ⬅ 帶入
+                        </button>
                     </div>
-
-                    <div>
-                        <label class="block font-medium text-slate-700 mb-1">職稱 (Title)</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_title" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_title')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded text-[11px] whitespace-nowrap">帶入</button>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block font-medium text-slate-700 mb-1">公司/機構名稱</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_company" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium">
-                            <button type="button" onclick="fillSelectedTo('field_company')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded text-[11px] whitespace-nowrap">帶入</button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block font-medium text-slate-700 mb-1">行動電話 (Mobile)</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_mobile" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_mobile')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded text-[11px] whitespace-nowrap">帶入</button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block font-medium text-slate-700 mb-1">公司電話 (Phone)</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_phone" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_phone')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded text-[11px] whitespace-nowrap">帶入</button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block font-medium text-slate-700 mb-1">傳真 (Fax)</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_fax" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_fax')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded text-[11px] whitespace-nowrap">帶入</button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block font-medium text-slate-700 mb-1">E-mail</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_email" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_email')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded text-[11px] whitespace-nowrap">帶入</button>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block font-medium text-slate-700 mb-1">地址 (Address)</label>
-                        <div class="flex gap-1">
-                            <input type="text" id="field_address" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                            <button type="button" onclick="fillSelectedTo('field_address')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded text-[11px] whitespace-nowrap">帶入</button>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block font-medium text-slate-700 mb-1">標籤 Tags (逗號分隔)</label>
-                        <input type="text" id="field_tags" placeholder="保險, 經紀人, 台北" class="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    </div>
-
-                    <!-- OCR 辨識原文面板 -->
-                    <div class="md:col-span-2 mt-1">
-                        <label class="block font-medium text-slate-700 mb-1">
-                            OCR 辨識原文 (在下方反白選取文字後點選相應「帶入」按鈕)
-                        </label>
-                        <textarea id="field_raw" rows="5" class="w-full p-2 border border-slate-200 bg-slate-50 text-slate-700 rounded-md font-mono text-[11px] focus:outline-none leading-relaxed"></textarea>
-                    </div>
-                </form>
-
-                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end space-x-3">
-                    <button onclick="discardCurrentCard()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-semibold transition">
-                        捨棄
-                    </button>
-                    <button onclick="saveAndExportCard()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition inline-flex items-center gap-1.5">
-                        <i class="fa-solid fa-file-export"></i> 儲存並匯出 Obsidian (.md)
-                    </button>
                 </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">行動電話</label>
+                        <div class="flex gap-1">
+                            <input type="text" id="field_mobile" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <button type="button" onclick="fillSelectedTo('field_mobile')" class="px-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 shrink-0">帶入</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">公司電話</label>
+                        <div class="flex gap-1">
+                            <input type="text" id="field_phone" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <button type="button" onclick="fillSelectedTo('field_phone')" class="px-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 shrink-0">帶入</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">傳真 (Fax)</label>
+                        <div class="flex gap-1">
+                            <input type="text" id="field_fax" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <button type="button" onclick="fillSelectedTo('field_fax')" class="px-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 shrink-0">帶入</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">E-mail</label>
+                        <div class="flex gap-1">
+                            <input type="text" id="field_email" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <button type="button" onclick="fillSelectedTo('field_email')" class="px-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 shrink-0">帶入</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">地址 (Address)</label>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="field_address" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <button type="button" onclick="fillSelectedTo('field_address')" class="touch-target px-3 bg-indigo-50 active:bg-indigo-100 text-indigo-700 font-medium rounded-xl border border-indigo-200 shrink-0 flex items-center justify-center">
+                            ⬅ 帶入
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">標籤 Tags (逗號分隔)</label>
+                    <input type="text" id="field_tags" placeholder="保險, 台北, 經紀人" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+
+                <!-- OCR 辨識原文面板 (可反白選取帶入) -->
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">
+                        OCR 辨識原文 (用手指反白文字後點對應「帶入」)
+                    </label>
+                    <textarea id="field_raw" rows="4" class="w-full p-2.5 border border-slate-200 bg-slate-50 text-slate-700 rounded-xl font-mono text-xs focus:outline-none leading-relaxed select-text"></textarea>
+                </div>
+            </form>
+
+            <!-- 移動端底欄操作按鈕 -->
+            <div class="pt-2 flex items-center space-x-2">
+                <button type="button" onclick="discardCurrentCard()" class="touch-target w-1/3 bg-slate-100 active:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition">
+                    捨棄
+                </button>
+                <button type="button" onclick="saveAndExportCard()" class="touch-target w-2/3 bg-emerald-600 active:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-file-export text-sm"></i> 儲存並匯出 Obsidian (.md)
+                </button>
             </div>
         </section>
 
-        <!-- 區塊三：已儲存名片庫 -->
-        <section class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-box-archive text-indigo-600"></i> 本地名片資料庫
+        <!-- 區塊三：已儲存名片庫 (Mobile Grid & Search) -->
+        <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div class="space-y-3 mb-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-box-archive text-indigo-600"></i>
+                        <span>本地名片庫</span>
                     </h2>
-                    <p class="text-xs text-slate-500 mt-0.5">所有資料安全保存在您電腦的 LocalStorage 中。</p>
+                    <span id="cardCountBadge" class="text-[11px] bg-indigo-50 text-indigo-600 font-semibold px-2 py-0.5 rounded-full">0 張</span>
                 </div>
-                <div class="w-full md:w-80 relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                    <input type="text" id="searchInput" oninput="renderCardList()" placeholder="搜尋姓名、公司、電話、地址..." class="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+                    <input type="text" id="searchInput" oninput="renderCardList()" placeholder="搜尋姓名、公司、電話..." class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
             </div>
 
-            <!-- 名片網格 -->
-            <div id="cardGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            <!-- 名片卡片列表 -->
+            <div id="cardGrid" class="space-y-3"></div>
             
-            <div id="emptyState" class="hidden py-12 text-center text-slate-400">
-                <i class="fa-regular fa-folder-open text-4xl mb-3 block"></i>
-                <p class="text-sm font-medium">尚無儲存的名片資料</p>
+            <div id="emptyState" class="hidden py-8 text-center text-slate-400">
+                <i class="fa-regular fa-folder-open text-3xl mb-2 block"></i>
+                <p class="text-xs font-medium">尚無名片紀錄，請拍攝或上傳照片</p>
             </div>
         </section>
 
     </main>
 
-    <!-- JavaScript 核心引擎 -->
+    <!-- PWA 註冊腳本與的核心 JavaScript 邏輯 -->
     <script>
+        // PWA Service Worker Inline Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('PWA Service Worker 註冊成功'))
+                    .catch(err => console.log('Service Worker 註冊未完備（離線模式將在靜態伺服器運作）:', err));
+            });
+        }
+
         let cardDatabase = [];
         let originalImgBase64 = "";
         let originalImgObject = new Image();
 
-        // Canvas 視覺拉框狀態
+        // Canvas 觸控/滑鼠 視覺拉框狀態
         let canvas, ctx;
         let isSelecting = false;
         let startX = 0, startY = 0;
         let cropX = 0, cropY = 0, cropW = 0, cropH = 0;
 
-        // 常見書法/藝術字 OCR 錯別字修復字典 (常用偏旁錯字)
+        // 常見書法/藝術字 OCR 錯別字偏旁修復字典
         const CHARACTER_CORRECTIONS = {
-            "麻": "霖",  // 常見「霖」字被誤判為「麻」
+            "麻": "霖",
             "麻霖": "霖",
             "松麻": "松霖",
-            "作偉": "作偉",
-            "偉": "偉"
+            "作偉": "偉"
         };
 
-        // 雜訊與標語黑名單
         const NOISE_BLACKLIST = [
-            "客觀", "專業", "誠信", "負責", "保險經紀人", "股份有限公司", "SINCE", "1991", "GSP", "金牌服務", "樂在工作", "成就宏偉"
+            "客觀", "專業", "誠信", "負責", "保險經紀人", "股份有限公司", "SINCE", "GSP", "樂在工作", "成就"
         ];
 
         window.addEventListener('DOMContentLoaded', () => {
             loadDatabaseFromStorage();
-            setupDropZone();
-            initCanvas();
+            setupInputListeners();
+            initTouchCanvas();
         });
 
         function loadDatabaseFromStorage() {
-            const saved = localStorage.getItem("card_master_v7_db");
+            const saved = localStorage.getItem("card_pwa_v8_db");
             if (saved) {
                 try { cardDatabase = JSON.parse(saved); } catch (e) { cardDatabase = []; }
             }
@@ -295,26 +314,21 @@
         }
 
         function saveDatabaseToStorage() {
-            localStorage.setItem("card_master_v7_db", JSON.stringify(cardDatabase));
+            localStorage.setItem("card_pwa_v8_db", JSON.stringify(cardDatabase));
         }
 
-        function setupDropZone() {
-            const dropZone = document.getElementById('dropZone');
-            const fileInput = document.getElementById('imageLoader');
+        function setupInputListeners() {
+            const cameraInput = document.getElementById('cameraInput');
+            const galleryInput = document.getElementById('galleryInput');
 
-            dropZone.addEventListener('click', () => fileInput.click());
+            const handleFileEvent = (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    handleFile(e.target.files[0]);
+                }
+            };
 
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
-                dropZone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
-            });
-
-            dropZone.addEventListener('drop', (e) => {
-                if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
-            });
-
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) handleFile(e.target.files[0]);
-            });
+            cameraInput.addEventListener('change', handleFileEvent);
+            galleryInput.addEventListener('change', handleFileEvent);
         }
 
         function handleFile(file) {
@@ -338,66 +352,88 @@
         }
 
         // ==========================================
-        // 視覺化 Canvas 繪製與框選事件處理
+        // 觸控 (Touch) & 滑鼠 (Mouse) 雙相容 Canvas 匡選
         // ==========================================
-        function initCanvas() {
+        function initTouchCanvas() {
             canvas = document.getElementById('mainCanvas');
             ctx = canvas.getContext('2d');
 
-            canvas.addEventListener('mousedown', (e) => {
+            const getPos = (e) => {
                 const rect = canvas.getBoundingClientRect();
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
 
-                startX = (e.clientX - rect.left) * scaleX;
-                startY = (e.clientY - rect.top) * scaleY;
+                let clientX = e.clientX;
+                let clientY = e.clientY;
+
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                }
+
+                return {
+                    x: (clientX - rect.left) * scaleX,
+                    y: (clientY - rect.top) * scaleY
+                };
+            };
+
+            const startSelection = (e) => {
+                const pos = getPos(e);
+                startX = pos.x;
+                startY = pos.y;
                 isSelecting = true;
-            });
+            };
 
-            canvas.addEventListener('mousemove', (e) => {
+            const moveSelection = (e) => {
                 if (!isSelecting) return;
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-
-                const currentX = (e.clientX - rect.left) * scaleX;
-                const currentY = (e.clientY - rect.top) * scaleY;
+                const pos = getPos(e);
 
                 drawFullCanvas();
 
-                // 繪製選擇框
+                // 繪製匡選框
                 ctx.strokeStyle = '#6366f1';
-                ctx.lineWidth = 3;
+                ctx.lineWidth = Math.max(2, canvas.width / 300);
                 ctx.setLineDash([6, 6]);
-                ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
+                ctx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
                 ctx.setLineDash([]);
 
-                // 繪製半透明遮罩
-                ctx.fillStyle = 'rgba(99, 102, 241, 0.15)';
-                ctx.fillRect(startX, startY, currentX - startX, currentY - startY);
-            });
+                // 遮罩效果
+                ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
+                ctx.fillRect(startX, startY, pos.x - startX, pos.y - startY);
+            };
 
-            canvas.addEventListener('mouseup', (e) => {
+            const endSelection = (e) => {
                 if (!isSelecting) return;
                 isSelecting = false;
 
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-
-                const endX = (e.clientX - rect.left) * scaleX;
-                const endY = (e.clientY - rect.top) * scaleY;
+                let endX = startX, endY = startY;
+                if (e.changedTouches && e.changedTouches.length > 0) {
+                    const rect = canvas.getBoundingClientRect();
+                    const scaleX = canvas.width / rect.width;
+                    const scaleY = canvas.height / rect.height;
+                    endX = (e.changedTouches[0].clientX - rect.left) * scaleX;
+                    endY = (e.changedTouches[0].clientY - rect.top) * scaleY;
+                }
 
                 cropX = Math.min(startX, endX);
                 cropY = Math.min(startY, endY);
                 cropW = Math.abs(endX - startX);
                 cropH = Math.abs(endY - startY);
 
-                // 若框選區域足夠大，執行區域專用 OCR
-                if (cropW > 20 && cropH > 20) {
+                if (cropW > 15 && cropH > 15) {
                     runRegionOCR(cropX, cropY, cropW, cropH);
                 }
-            });
+            };
+
+            // 滑鼠事件
+            canvas.addEventListener('mousedown', startSelection);
+            canvas.addEventListener('mousemove', moveSelection);
+            canvas.addEventListener('mouseup', endSelection);
+
+            // 手指 Touch 觸控事件
+            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startSelection(e); }, { passive: false });
+            canvas.addEventListener('touchmove', (e) => { e.preventDefault(); moveSelection(e); }, { passive: false });
+            canvas.addEventListener('touchend', (e) => { endSelection(e); });
         }
 
         function drawFullCanvas() {
@@ -412,10 +448,10 @@
         }
 
         // ==========================================
-        // 全圖 OCR 與 視覺框選區域專用 OCR
+        // OCR 解析邏輯 (Tesseract.js Engine)
         // ==========================================
         async function runFullOCR() {
-            updateStatus("正在進行全圖辨識...", "30%");
+            updateStatus("全圖辨識中...", "35%");
             try {
                 const worker = await Tesseract.createWorker('chi_tra+eng');
                 const ret = await worker.recognize(originalImgBase64);
@@ -423,38 +459,34 @@
                 await worker.terminate();
 
                 document.getElementById('field_raw').value = rawText;
-                parseFieldsV7(rawText, null);
+                parseFieldsV8(rawText, null);
                 updateStatus("全圖辨識完成！", "100%");
-                setTimeout(() => document.getElementById('statusContainer').classList.add('hidden'), 1200);
+                setTimeout(() => document.getElementById('statusContainer').classList.add('hidden'), 1000);
             } catch (err) {
                 console.error(err);
-                updateStatus("辨識失敗，請嘗試手動選取。", "0%");
+                updateStatus("辨識失敗，請嘗試拉框匡選。", "0%");
             }
         }
 
-        // 專門針對拉框選取的「姓名區域」高放大倍率辨識
         async function runRegionOCR(rx, ry, rw, rh) {
-            updateStatus("正在針對匡選區域進行高清晰專用辨識...", "50%");
+            updateStatus("匡選高解析專用辨識...", "50%");
 
             const cropCanvas = document.getElementById('cropCanvas');
             const cropCtx = cropCanvas.getContext('2d');
             
-            // 放大兩倍以提高字元分辨率
             const scale = 2.5;
             cropCanvas.width = rw * scale;
             cropCanvas.height = rh * scale;
 
             cropCtx.drawImage(originalImgObject, rx, ry, rw, rh, 0, 0, rw * scale, rh * scale);
 
-            // 圖像二值化強化
+            // 二值化強化
             const imgData = cropCtx.getImageData(0, 0, cropCanvas.width, cropCanvas.height);
             const data = imgData.data;
             for (let i = 0; i < data.length; i += 4) {
                 let gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
                 gray = gray < 150 ? 0 : 255;
-                data[i] = gray;
-                data[i+1] = gray;
-                data[i+2] = gray;
+                data[i] = gray; data[i+1] = gray; data[i+2] = gray;
             }
             cropCtx.putImageData(imgData, 0, 0);
 
@@ -462,55 +494,49 @@
 
             try {
                 const worker = await Tesseract.createWorker('chi_tra');
-                await worker.setParameters({
-                    tessedit_pageseg_mode: Tesseract.PSM.SINGLE_LINE, // 單行文字模式
-                });
+                await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.SINGLE_LINE });
                 const ret = await worker.recognize(croppedBase64);
                 let regionText = ret.data.text.trim();
                 await worker.terminate();
 
-                // 進行字形修復
                 regionText = applyCharacterCorrections(regionText);
-
-                // 專屬將匡選文字更新至姓名或文字框
                 const cleanedName = regionText.replace(/[^\u4e00-\u9fa5]/g, '');
+
                 if (cleanedName) {
                     document.getElementById('field_name').value = cleanedName;
                 }
 
-                // 附加至原文欄位頂端
                 const currentRaw = document.getElementById('field_raw').value;
-                document.getElementById('field_raw').value = `[匡選精準讀取]: ${regionText}\n` + currentRaw;
+                document.getElementById('field_raw').value = `[匡選讀取]: ${regionText}\n` + currentRaw;
 
-                updateStatus(`匡選區域辨識結果：${regionText}`, "100%");
-                setTimeout(() => document.getElementById('statusContainer').classList.add('hidden'), 1500);
+                updateStatus(`匡選結果：${regionText}`, "100%");
+                setTimeout(() => document.getElementById('statusContainer').classList.add('hidden'), 1200);
 
             } catch (err) {
                 console.error(err);
-                updateStatus("區域辨識發生異常", "0%");
+                updateStatus("區域辨識異常", "0%");
             }
         }
 
         // ==========================================
         // 智慧欄位提取與字體修復引擎
         // ==========================================
-        function parseFieldsV7(rawText, regionName) {
-            // 清空舊數據
+        function parseFieldsV8(rawText, regionName) {
             ['name', 'title', 'company', 'mobile', 'phone', 'fax', 'email', 'address', 'tags'].forEach(id => {
                 document.getElementById(`field_${id}`).value = '';
             });
 
             const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-            // 1. Email
+            // Email
             const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
             if (emailMatch) document.getElementById('field_email').value = emailMatch[0];
 
-            // 2. 行動電話 (09xx)
+            // Mobile (09xx)
             const mobileMatch = rawText.match(/(?:09\d{2}[-\s]?\d{3}[-\s]?\d{3})|(?:\+?886[-\s]?9\d{2}[-\s]?\d{3}[-\s]?\d{3})/);
             if (mobileMatch) document.getElementById('field_mobile').value = mobileMatch[0].replace(/\s+/g, '');
 
-            // 3. 市話 (電話/傳真)
+            // Phone / Fax
             lines.forEach(line => {
                 const phoneMatch = line.match(/(0\d{1,2}[-\s]?\d{7,8})/);
                 if (line.includes('傳') || line.includes('真') || line.toLowerCase().includes('fax')) {
@@ -520,50 +546,36 @@
                 }
             });
 
-            // 4. 地址 (搜尋包含 市/縣/區/路/段/號)
+            // Address
             const addrLine = lines.find(l => (l.includes('市') || l.includes('縣')) && (l.includes('路') || l.includes('街') || l.includes('段')));
             if (addrLine) document.getElementById('field_address').value = addrLine.replace(/\s+/g, '');
 
-            // 5. 公司名稱提取
-            const compKeywords = ['股份有限公司', '保險經紀人', '保經', '團隊', '有限公司', '集團', '企業', '房產'];
+            // Company
+            const compKeywords = ['股份有限公司', '保險經紀人', '保經', '團隊', '有限公司', '集團', '企業'];
             const compLine = lines.find(l => compKeywords.some(k => l.includes(k)));
-            if (compLine) {
-                // 清理多餘空白
-                document.getElementById('field_company').value = compLine.replace(/\s+/g, '');
-            }
+            if (compLine) document.getElementById('field_company').value = compLine.replace(/\s+/g, '');
 
-            // 6. 🔥 姓名演算法 (包含漢字偏旁錯字校對)
+            // Name
             let detectedName = regionName || "";
-
             if (!detectedName) {
                 for (let line of lines) {
-                    // 去除數字與英文
                     let cleaned = line.replace(/[0-9a-zA-Z\s]/g, '');
-
-                    // 檢查黑名單，跳過標語與機構名
                     if (NOISE_BLACKLIST.some(b => cleaned.includes(b))) continue;
-
-                    // 套用字體錯別字修正字典
                     cleaned = applyCharacterCorrections(cleaned);
-
-                    // 尋找符合長度 2~4 個字純中文姓名
                     if (/^[\u4e00-\u9fa5]{2,4}$/.test(cleaned)) {
                         detectedName = cleaned;
                         break;
                     }
                 }
             }
-
             document.getElementById('field_name').value = detectedName;
 
-            // 預設標籤
-            const tags = [];
+            // Tags
+            const tags = ['名片'];
             if (document.getElementById('field_company').value) tags.push('商業');
-            if (document.getElementById('field_company').value.includes('保險')) tags.push('保險');
             document.getElementById('field_tags').value = tags.join(', ');
         }
 
-        // 文字修復字典比對
         function applyCharacterCorrections(text) {
             let result = text;
             for (let [wrong, correct] of Object.entries(CHARACTER_CORRECTIONS)) {
@@ -585,7 +597,7 @@
                                  textarea.value.substring(textarea.selectionStart, textarea.selectionEnd).trim();
 
             if (!selectedText) {
-                alert('請先在下方「OCR 辨識原文」框內用滑鼠反白選取文字！');
+                alert('請先在「OCR 辨識原文」框內反白選取文字！');
                 return;
             }
 
@@ -608,7 +620,7 @@
         function saveAndExportCard() {
             const name = document.getElementById('field_name').value.trim();
             if (!name) {
-                alert('請至少輸入或確認姓名欄位！');
+                alert('請至少確認姓名欄位！');
                 return;
             }
 
@@ -650,7 +662,7 @@ ${tags.map(t => `  - ${t}`).join('\n')}
 created: ${cardRecord.createdAt}
 ---
 
-# 📇 名片資料：${name} ${company ? ' - ' + company : ''}
+# 📇 名片：${name} ${company ? '- ' + company : ''}
 
 ## 👤 基本資訊
 - **姓名**：${name}
@@ -662,16 +674,16 @@ created: ${cardRecord.createdAt}
 - **E-mail**：${email || '無'}
 - **地址**：${address || '無'}
 
-## 🏷️ 分類標籤
+## 🏷️ 標籤
 ${tags.map(t => `#${t}`).join(' ')}
 
-## 📝 OCR 辨識原文
+## 📝 OCR 原文
 \`\`\`text
 ${rawText}
 \`\`\`
 
-## 📷 名片影像預覽
-![${name}名片](${originalImgBase64})
+## 📷 名片圖檔
+![${name}](${originalImgBase64})
 `;
 
             const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
@@ -686,7 +698,7 @@ ${rawText}
         }
 
         // ==========================================
-        // 渲染名片庫
+        // 渲染行動版名片庫
         // ==========================================
         function renderCardList() {
             const grid = document.getElementById('cardGrid');
@@ -700,6 +712,8 @@ ${rawText}
                 return searchStr.includes(keyword);
             });
 
+            document.getElementById('cardCountBadge').innerText = `${filtered.length} 張`;
+
             if (filtered.length === 0) {
                 emptyState.classList.remove('hidden');
                 return;
@@ -708,30 +722,25 @@ ${rawText}
 
             filtered.forEach(card => {
                 const cardEl = document.createElement('div');
-                cardEl.className = 'bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition flex flex-col justify-between';
+                cardEl.className = 'bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col justify-between';
                 cardEl.innerHTML = `
-                    <div>
-                        <div class="h-32 bg-slate-100 overflow-hidden relative border-b border-slate-100">
+                    <div class="flex p-3 gap-3">
+                        <div class="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden shrink-0 border border-slate-100">
                             <img src="${card.image}" alt="${escapeHtml(card.name)}" class="w-full h-full object-cover">
-                            <button onclick="deleteCard(${card.id})" class="absolute top-2 right-2 bg-white/80 hover:bg-red-600 hover:text-white text-slate-600 w-6 h-6 rounded-full flex items-center justify-center text-xs transition">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
                         </div>
-                        <div class="p-3.5 text-xs">
-                            <div class="flex items-baseline justify-between mb-1">
-                                <h4 class="font-bold text-sm text-slate-800">${escapeHtml(card.name)}</h4>
-                                <span class="text-[11px] text-slate-500 font-medium">${escapeHtml(card.title)}</span>
+                        <div class="flex-1 min-w-0 text-xs">
+                            <div class="flex items-center justify-between mb-0.5">
+                                <h4 class="font-bold text-sm text-slate-800 truncate">${escapeHtml(card.name)}</h4>
+                                <button onclick="deleteCard(${card.id})" class="text-slate-400 active:text-red-600 p-1">
+                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                </button>
                             </div>
-                            <p class="text-slate-600 font-medium mb-2 truncate">${escapeHtml(card.company || '未標示公司')}</p>
-                            
-                            <div class="space-y-1 text-slate-500 text-[11px]">
-                                ${card.mobile ? `<p><i class="fa-solid fa-mobile-screen w-4 text-indigo-500"></i> ${escapeHtml(card.mobile)}</p>` : ''}
-                                ${card.phone ? `<p><i class="fa-solid fa-phone w-4 text-indigo-500"></i> ${escapeHtml(card.phone)}</p>` : ''}
-                                ${card.email ? `<p><i class="fa-regular fa-envelope w-4 text-indigo-500"></i> ${escapeHtml(card.email)}</p>` : ''}
-                            </div>
+                            <p class="text-indigo-600 font-medium truncate mb-1">${escapeHtml(card.title || '無職稱')}</p>
+                            <p class="text-slate-600 font-medium truncate mb-1">${escapeHtml(card.company || '未標示公司')}</p>
+                            ${card.mobile ? `<p class="text-slate-500 text-[11px]"><i class="fa-solid fa-mobile-screen mr-1 text-slate-400"></i>${escapeHtml(card.mobile)}</p>` : ''}
                         </div>
                     </div>
-                    <div class="p-3 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-1">
+                    <div class="px-3 py-1.5 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-1">
                         ${card.tags.map(t => `<span class="bg-indigo-50 text-indigo-600 text-[10px] px-2 py-0.5 rounded-full font-medium">#${escapeHtml(t)}</span>`).join('')}
                     </div>
                 `;
